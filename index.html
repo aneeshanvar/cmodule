@@ -1736,6 +1736,41 @@ h1,h2,h3,h4,h5,h6 {
       <div id="itHistoryTableWrap" style="padding:20px 20px 0;"></div>
       <div id="itHistoryPager" style="display:flex;align-items:center;gap:6px;padding:14px 20px;border-top:1px solid var(--ba-border);"></div>
     </div>
+
+    <!-- Error Detail Overlay (slides over history) -->
+    <div id="ihErrorOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:700;align-items:center;justify-content:center;" onclick="if(event.target===this)ihCloseErrors()">
+      <div style="background:#fff;border-radius:12px;width:900px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 16px 56px rgba(0,0,0,0.24);overflow:hidden;font-family:'Poppins',sans-serif;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--ba-border);flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:9px;background:#fdecea;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#c62828" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--ba-text-dark);">Import Errors</div>
+              <div style="font-size:11px;color:var(--ba-text-muted);margin-top:1px;">Review all records with errors and reprocess</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button id="ihReprocessBtn" onclick="ihReprocess()" style="padding:7px 18px;border:none;border-radius:var(--ba-radius);background:var(--ba-primary);color:#fff;font-size:12px;font-weight:700;font-family:'Poppins',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.07"/></svg>
+              Reprocess
+            </button>
+            <button onclick="ihCloseErrors()" style="background:none;border:1.5px solid var(--ba-border);border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ba-text-muted);font-size:18px;">&times;</button>
+          </div>
+        </div>
+        <!-- Search -->
+        <div style="padding:12px 24px;border-bottom:1px solid var(--ba-border);background:#fafbfc;flex-shrink:0;">
+          <div style="position:relative;max-width:340px;">
+            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search by name, member ID, field, reason…" oninput="ihFilterErrors(this.value)"
+              style="width:100%;padding:7px 12px 7px 30px;border:1px solid var(--ba-border);border-radius:var(--ba-radius);font-size:12px;font-family:'Poppins',sans-serif;color:var(--ba-text-dark);background:#fff;box-sizing:border-box;">
+          </div>
+        </div>
+        <!-- Content -->
+        <div id="ihErrorContent" style="padding:20px 24px;overflow-y:auto;flex:1;"></div>
+      </div>
+    </div>
   </div>
   <!-- ── RECONCILIATION TAB ── -->
   <div id="itSection-reconciliation" style="display:none;">
@@ -4258,6 +4293,10 @@ function itRenderHistory() {
 
   var rows = uploadHistoryRows.map(function(r, idx) {
     var s = statusColors[r.status] || statusColors.skip;
+    var errCell = r.err > 0
+      ? '<a onclick="ihOpenErrors(' + idx + ')" style="color:#e05d5d;font-weight:700;cursor:pointer;text-decoration:underline;">' + r.err + '</a>'
+      : '<span style="color:var(--ba-text-muted);">' + r.err + '</span>';
+    var fileCell = '<a onclick="ihDownloadFile(\'' + r.file.replace(/'/g,"\\'") + '\')" style="color:var(--ba-primary);cursor:pointer;text-decoration:underline;font-size:10.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;" title="' + r.file + '">' + r.file + '</a>';
     return '<tr style="border-bottom:1px solid var(--ba-border);background:' + (idx%2===0?'#fff':'#fafbfc') + ';">'
       + '<td style="padding:9px 14px;color:var(--ba-text-dark);white-space:nowrap;font-size:11.5px;">' + (r.carrier||'—') + '</td>'
       + '<td style="padding:9px 14px;"><span style="display:inline-block;padding:3px 10px;border-radius:4px;background:' + s.bg + ';color:' + s.color + ';font-size:10.5px;font-weight:700;">' + s.label + '</span></td>'
@@ -4273,8 +4312,8 @@ function itRenderHistory() {
       + '<td style="padding:9px 14px;color:var(--ba-text-muted);text-align:center;font-size:11.5px;">' + r.time + '</td>'
       + '<td style="padding:9px 14px;color:var(--ba-text-muted);text-align:center;font-size:11.5px;">' + r.total + '</td>'
       + '<td style="padding:9px 14px;color:var(--ba-text-muted);text-align:center;font-size:11.5px;">' + r.success + '</td>'
-      + '<td style="padding:9px 14px;color:var(--ba-text-muted);text-align:center;font-size:11.5px;">' + r.err + '</td>'
-      + '<td style="padding:9px 14px;color:var(--ba-text-muted);font-size:10.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + r.file + '">' + r.file + '</td>'
+      + '<td style="padding:9px 14px;text-align:center;font-size:11.5px;">' + errCell + '</td>'
+      + '<td style="padding:9px 14px;font-size:10.5px;max-width:220px;">' + fileCell + '</td>'
     + '</tr>';
   }).join('');
 
@@ -4302,6 +4341,123 @@ function itRenderHistory() {
     + '<button style="padding:5px 12px;border:1px solid var(--ba-border);border-radius:var(--ba-radius);background:#fff;font-size:11px;cursor:pointer;color:var(--ba-text-dark);">2</button>'
     + '<button style="padding:5px 12px;border:1px solid var(--ba-border);border-radius:var(--ba-radius);background:#fff;font-size:11px;cursor:pointer;color:var(--ba-text-muted);">Next</button>'
     + '<button style="padding:5px 12px;border:1px solid var(--ba-border);border-radius:var(--ba-radius);background:#fff;font-size:11px;cursor:pointer;color:var(--ba-text-muted);">Last</button>';
+}
+
+function ihDownloadFile(filename) {
+  // Generate a minimal CSV blob matching the file type so the download is real
+  var csvContent = 'FileName,Status,Downloaded\n"' + filename + '","Exported","' + new Date().toLocaleString() + '"\n';
+  var blob = new Blob([csvContent], { type: 'text/csv' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+}
+
+var ihActiveErrorIdx = null;
+
+function ihOpenErrors(idx) {
+  var r = uploadHistoryRows[idx];
+  if (!r) return;
+  ihActiveErrorIdx = idx;
+
+  var overlay = document.getElementById('ihErrorOverlay');
+  if (!overlay) return;
+
+  ihRenderErrorOverlay(r, '');
+  overlay.style.display = 'flex';
+}
+
+function ihCloseErrors() {
+  var overlay = document.getElementById('ihErrorOverlay');
+  if (overlay) overlay.style.display = 'none';
+  ihActiveErrorIdx = null;
+}
+
+function ihFilterErrors(q) {
+  var idx = ihActiveErrorIdx;
+  if (idx === null) return;
+  ihRenderErrorOverlay(uploadHistoryRows[idx], q);
+}
+
+function ihRenderErrorOverlay(r, searchQ) {
+  var content = document.getElementById('ihErrorContent');
+  if (!content) return;
+  var q = (searchQ || '').toLowerCase();
+
+  var filtered = r.errors.filter(function(e) {
+    if (!q) return true;
+    return (e.name||'').toLowerCase().indexOf(q) >= 0
+      || (e.memberId||'').toLowerCase().indexOf(q) >= 0
+      || (e.field||'').toLowerCase().indexOf(q) >= 0
+      || (e.reason||'').toLowerCase().indexOf(q) >= 0;
+  });
+
+  var rows = filtered.map(function(e, i) {
+    return '<tr style="border-bottom:1px solid #f3f4f6;background:' + (i%2===0?'#fff':'#fafbfc') + ';">'
+      + '<td style="padding:9px 12px;font-size:11.5px;color:var(--ba-text-muted);">' + e.row + '</td>'
+      + '<td style="padding:9px 12px;font-size:11.5px;font-weight:600;color:var(--ba-text-dark);">' + (e.memberId||'—') + '</td>'
+      + '<td style="padding:9px 12px;font-size:11.5px;color:var(--ba-text-dark);">' + (e.name||'—') + '</td>'
+      + '<td style="padding:9px 12px;font-size:11px;"><span style="background:#fff3e0;color:#e65100;border-radius:4px;padding:2px 7px;font-weight:600;">' + (e.field||'—') + '</span></td>'
+      + '<td style="padding:9px 12px;font-size:11px;font-family:monospace;color:#e05d5d;">' + (e.value||'—') + '</td>'
+      + '<td style="padding:9px 12px;font-size:11.5px;color:var(--ba-text-muted);">' + (e.reason||'—') + '</td>'
+    + '</tr>';
+  }).join('');
+
+  var emptyMsg = filtered.length === 0
+    ? '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ba-text-muted);font-size:12px;">No errors match your search</td></tr>'
+    : '';
+
+  content.innerHTML =
+    // File info bar
+    '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fef7f0;border-radius:var(--ba-radius);border:1px solid #fddcb5;margin-bottom:16px;flex-wrap:wrap;">'
+      + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      + '<span style="font-size:11.5px;font-weight:600;color:#bf360c;flex:1;word-break:break-all;">' + r.file + '</span>'
+      + '<span style="font-size:11px;color:var(--ba-text-muted);">' + r.carrier + ' · ' + r.type + ' · ' + r.dt + '</span>'
+    + '</div>'
+    // Summary
+    + '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">'
+      + '<span style="font-size:12px;font-weight:700;color:var(--ba-text-dark);">' + r.errors.length + ' error' + (r.errors.length!==1?'s':'') + ' found</span>'
+      + (filtered.length !== r.errors.length ? '<span style="font-size:11px;color:var(--ba-text-muted);">Showing ' + filtered.length + ' of ' + r.errors.length + '</span>' : '')
+    + '</div>'
+    // Table
+    + '<div style="overflow-x:auto;border-radius:var(--ba-radius);border:1px solid var(--ba-border);">'
+      + '<table style="width:100%;border-collapse:collapse;font-size:11.5px;">'
+        + '<thead><tr style="background:#f7f9fc;border-bottom:2px solid var(--ba-border);">'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);white-space:nowrap;">Row #</th>'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);">Member ID</th>'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);">Name</th>'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);">Field</th>'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);">Value</th>'
+          + '<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ba-text-dark);">Error Reason</th>'
+        + '</tr></thead>'
+        + '<tbody>' + (rows || emptyMsg) + '</tbody>'
+      + '</table>'
+    + '</div>';
+}
+
+function ihReprocess() {
+  var idx = ihActiveErrorIdx;
+  if (idx === null) return;
+  var r = uploadHistoryRows[idx];
+
+  var btn = document.getElementById('ihReprocessBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Reprocessing…'; }
+
+  setTimeout(function() {
+    // Simulate reprocess — mark as success, clear errors
+    uploadHistoryRows[idx] = Object.assign({}, r, { status:'success', err:'0', pct:100, prog:'2 of 2', errors:[] });
+    ihCloseErrors();
+    itRenderHistory();
+    // Toast
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1e3869;color:#fff;padding:12px 24px;border-radius:8px;font-size:12px;font-weight:600;font-family:Poppins,sans-serif;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:flex;align-items:center;gap:10px;';
+    toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#59caf7" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>File reprocessed successfully';
+    document.body.appendChild(toast);
+    setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); }, 3500);
+  }, 2000);
 }
 
 function itFilterHistory(q) {
@@ -5078,20 +5234,56 @@ function simulateUpload() {}
 function removeFile() {}
 
 const uploadHistoryRows = [
-  { dt:'Mar 4, 2026 1:40 AM',  status:'failure', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Aetna',        time:'1',    total:'3',     success:'3',     err:'0',  file:'1772606420877-Rate_Card_Template (5).xlsx' },
-  { dt:'Mar 3, 2026 4:46 AM',  status:'failure', pct:50,  prog:'1 of 2', type:'Reconciliation',            carrier:'Aetna',        time:'3054', total:'10',    success:'0',     err:'10', file:'1772531165162-AETNA_reconciliation_January_to_January.xlsx' },
-  { dt:'Mar 3, 2026 4:23 AM',  status:'skip',    pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Aetna',        time:'0',    total:'10',    success:'0',     err:'10', file:'1772529784876-AETNA_reconciliation_January_to_January.xlsx' },
-  { dt:'Mar 3, 2026 3:19 AM',  status:'success', pct:100, prog:'2 of 2', type:'Commissions',               carrier:'Aetna',        time:'0',    total:'2',     success:'2',     err:'0',  file:'1772525988754-Aetna_Xell_Aug+Commisisin.xlsx' },
-  { dt:'Mar 3, 2026 2:53 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Aetna',        time:'0',    total:'10',    success:'10',    err:'0',  file:'1772524412860-1762924188429-JAI_AETNA.csv' },
-  { dt:'Mar 3, 2026 2:32 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'BCBS',         time:'0',    total:'11',    success:'11',    err:'0',  file:'1772523132467-1762924188429-JAI_AETNA.csv' },
-  { dt:'Mar 3, 2026 2:29 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'BCBS',         time:'0',    total:'11',    success:'11',    err:'0',  file:'1772522943711-1762924188429-JAI_AETNA.csv' },
-  { dt:'Feb 6, 2026 4:19 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Humana',       time:'0',    total:'2',     success:'2',     err:'0',  file:'1770369548016-RateCardTemplate.csv' },
-  { dt:'Feb 2, 2026 11:08 PM', status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'UnitedHealth', time:'4',    total:'11336', success:'11336', err:'0',  file:'1770091685217-1769501539805-Aetna_BOB_Messer_20260105+FormatB.xlsx' },
-  { dt:'Jan 28, 2026 4:30 AM', status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Cigna',        time:'0',    total:'1',     success:'1',     err:'0',  file:'1769592659110-cti-usage-report-Jan-2026.csv' },
-  { dt:'Jan 21, 2026 7:49 AM', status:'failure', pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Aetna',        time:'0',    total:'--',    success:'--',    err:'--', file:'RECONCILIATION/2026/1/21/1768961959931-AETNA_reconciliation_January_to_Nove...' },
-  { dt:'Jan 21, 2026 7:34 AM', status:'failure', pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Anthem',       time:'0',    total:'--',    success:'--',    err:'--', file:'RECONCILIATION/2026/1/21/1768961045578-AETNA_reconciliation_January_to_Nove...' },
-  { dt:'Jan 8, 2026 8:14 AM',  status:'failure', pct:100, prog:'1 of 1', type:'Enrollment Reconciliation', carrier:'Aetna',        time:'0',    total:'--',    success:'--',    err:'--', file:'1767878072570-AETNA_reconciliation_January_to_December (2).xlsx' },
-  { dt:'Jan 8, 2026 5:34 AM',  status:'failure', pct:100, prog:'1 of 1', type:'Enrollment Reconciliation', carrier:'Aetna',        time:'1',    total:'--',    success:'--',    err:'--', file:'1767868460479-AETNA_reconciliation_January_to_December (2).xlsx' },
+  { dt:'Mar 4, 2026 1:40 AM',  status:'failure', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Aetna',        time:'1',    total:'3',     success:'3',     err:'0',  file:'1772606420877-Rate_Card_Template (5).xlsx',                              errors:[] },
+  { dt:'Mar 3, 2026 4:46 AM',  status:'failure', pct:50,  prog:'1 of 2', type:'Reconciliation',            carrier:'Aetna',        time:'3054', total:'10',    success:'0',     err:'10', file:'1772531165162-AETNA_reconciliation_January_to_January.xlsx',              errors:[
+    { row:2, memberId:'925842996', name:'NOAH SHACK',      field:'effDate',   value:'02/31/2026', reason:'Invalid date — day out of range' },
+    { row:5, memberId:'943407745', name:'TERESA REGALADO', field:'premium',   value:'-250.00',    reason:'Negative premium not allowed' },
+    { row:7, memberId:'943362163', name:'CHRISTOPHER W.',  field:'carrier',   value:'BCBS_UNKNOWN', reason:'Carrier code not found in system' },
+    { row:9, memberId:'943216650', name:'SHAWN JOHNSON',   field:'memberId',  value:'',            reason:'Member ID is required' },
+    { row:11,memberId:'943238578', name:'SHELDON CORDOVA', field:'effDate',   value:'13/01/2026', reason:'Invalid month in effective date' },
+    { row:13,memberId:'943356860', name:'SABRINA BELL',    field:'lob',       value:'UNKNOWN_LOB', reason:'Line of Business not recognized' },
+    { row:15,memberId:'943386831', name:'BRIAN BATES',     field:'state',     value:'XX',          reason:'Invalid state code' },
+    { row:17,memberId:'943412900', name:'LINDA HARRIS',    field:'phone',     value:'INVALID',     reason:'Phone number format invalid' },
+    { row:19,memberId:'943521001', name:'MARIA GARCIA',    field:'termDate',  value:'',            reason:'Term date is required' },
+    { row:21,memberId:'943612345', name:'JAMES WILSON',    field:'aorNpn',    value:'ABC',         reason:'AOR NPN must be numeric' },
+  ]},
+  { dt:'Mar 3, 2026 4:23 AM',  status:'skip',    pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Aetna',        time:'0',    total:'10',    success:'0',     err:'10', file:'1772529784876-AETNA_reconciliation_January_to_January.xlsx',              errors:[
+    { row:1, memberId:'925842996', name:'NOAH SHACK',      field:'duplicate', value:'925842996',   reason:'Duplicate Member ID — already processed' },
+    { row:2, memberId:'925909304', name:'OSCAR SIFUENTES', field:'duplicate', value:'925909304',   reason:'Duplicate Member ID — already processed' },
+    { row:3, memberId:'925704670', name:'GEORGE RILEY',    field:'duplicate', value:'925704670',   reason:'Duplicate Member ID — already processed' },
+    { row:4, memberId:'943407745', name:'TERESA REGALADO', field:'duplicate', value:'943407745',   reason:'Duplicate Member ID — already processed' },
+    { row:5, memberId:'943362163', name:'CHRISTOPHER W.',  field:'duplicate', value:'943362163',   reason:'Duplicate Member ID — already processed' },
+    { row:6, memberId:'943216650', name:'SHAWN JOHNSON',   field:'duplicate', value:'943216650',   reason:'Duplicate Member ID — already processed' },
+    { row:7, memberId:'943238578', name:'SHELDON CORDOVA', field:'duplicate', value:'943238578',   reason:'Duplicate Member ID — already processed' },
+    { row:8, memberId:'943356860', name:'SABRINA BELL',    field:'duplicate', value:'943356860',   reason:'Duplicate Member ID — already processed' },
+    { row:9, memberId:'943386831', name:'BRIAN BATES',     field:'duplicate', value:'943386831',   reason:'Duplicate Member ID — already processed' },
+    { row:10,memberId:'943412900', name:'LINDA HARRIS',    field:'duplicate', value:'943412900',   reason:'Duplicate Member ID — already processed' },
+  ]},
+  { dt:'Mar 3, 2026 3:19 AM',  status:'success', pct:100, prog:'2 of 2', type:'Commissions',               carrier:'Aetna',        time:'0',    total:'2',     success:'2',     err:'0',  file:'1772525988754-Aetna_Xell_Aug+Commisisin.xlsx',                           errors:[] },
+  { dt:'Mar 3, 2026 2:53 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Aetna',        time:'0',    total:'10',    success:'10',    err:'0',  file:'1772524412860-1762924188429-JAI_AETNA.csv',                              errors:[] },
+  { dt:'Mar 3, 2026 2:32 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'BCBS',         time:'0',    total:'11',    success:'11',    err:'0',  file:'1772523132467-1762924188429-JAI_AETNA.csv',                              errors:[] },
+  { dt:'Mar 3, 2026 2:29 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'BCBS',         time:'0',    total:'11',    success:'11',    err:'0',  file:'1772522943711-1762924188429-JAI_AETNA.csv',                              errors:[] },
+  { dt:'Feb 6, 2026 4:19 AM',  status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Humana',       time:'0',    total:'2',     success:'2',     err:'0',  file:'1770369548016-RateCardTemplate.csv',                                     errors:[] },
+  { dt:'Feb 2, 2026 11:08 PM', status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'UnitedHealth', time:'4',    total:'11336', success:'11336', err:'0',  file:'1770091685217-1769501539805-Aetna_BOB_Messer_20260105+FormatB.xlsx',      errors:[] },
+  { dt:'Jan 28, 2026 4:30 AM', status:'success', pct:100, prog:'2 of 2', type:'Book of Business',          carrier:'Cigna',        time:'0',    total:'1',     success:'1',     err:'0',  file:'1769592659110-cti-usage-report-Jan-2026.csv',                            errors:[] },
+  { dt:'Jan 21, 2026 7:49 AM', status:'failure', pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Aetna',        time:'0',    total:'--',    success:'--',    err:'3',  file:'RECONCILIATION/2026/1/21/1768961959931-AETNA_reconciliation_Jan_to_Nov.xlsx', errors:[
+    { row:1, memberId:'REC-001', name:'System Error',  field:'connection', value:'timeout', reason:'Database connection timeout after 30s' },
+    { row:2, memberId:'REC-002', name:'Parse Error',   field:'format',     value:'xlsx',   reason:'File format version not supported' },
+    { row:3, memberId:'REC-003', name:'Schema Error',  field:'columns',    value:'15/18',  reason:'Expected 18 columns, found 15' },
+  ]},
+  { dt:'Jan 21, 2026 7:34 AM', status:'failure', pct:100, prog:'1 of 1', type:'Reconciliation',            carrier:'Anthem',       time:'0',    total:'--',    success:'--',    err:'2',  file:'RECONCILIATION/2026/1/21/1768961045578-AETNA_reconciliation_Jan_to_Nov.xlsx', errors:[
+    { row:1, memberId:'REC-004', name:'Parse Error',   field:'header',     value:'missing', reason:'Required header row not found' },
+    { row:2, memberId:'REC-005', name:'Schema Error',  field:'delimiter',  value:'|',       reason:'Unexpected delimiter — expected comma' },
+  ]},
+  { dt:'Jan 8, 2026 8:14 AM',  status:'failure', pct:100, prog:'1 of 1', type:'Enrollment Reconciliation', carrier:'Aetna',        time:'0',    total:'--',    success:'--',    err:'1',  file:'1767878072570-AETNA_reconciliation_January_to_December (2).xlsx',          errors:[
+    { row:1, memberId:'ENR-001', name:'File Error',    field:'size',       value:'0 bytes', reason:'Uploaded file is empty' },
+  ]},
+  { dt:'Jan 8, 2026 5:34 AM',  status:'failure', pct:100, prog:'1 of 1', type:'Enrollment Reconciliation', carrier:'Aetna',        time:'1',    total:'--',    success:'--',    err:'4',  file:'1767868460479-AETNA_reconciliation_January_to_December (2).xlsx',          errors:[
+    { row:3, memberId:'ENR-002', name:'JOHN DOE',      field:'enrollDate', value:'00/00/0000', reason:'Enrollment date is invalid' },
+    { row:6, memberId:'ENR-003', name:'JANE SMITH',    field:'plan',       value:'UNKNOWN',    reason:'Plan code not recognized' },
+    { row:8, memberId:'ENR-004', name:'BOB JONES',     field:'ssn',        value:'000-00-0000', reason:'SSN cannot be all zeros' },
+    { row:12,memberId:'ENR-005', name:'ALICE BROWN',   field:'zip',        value:'0000',        reason:'ZIP code must be 5 digits' },
+  ]},
 ];
 
 function renderUploadHistory() {
