@@ -8706,14 +8706,24 @@ function itToggleInventory() {
 function itBuildMappingHTML() {
   // Build same mapping UI as itRenderStep2 / renderItMapping
   var dbFields = [
-    'Member Id','Applicant First Name','Applicant Last Name',
-    'Applicant Dob','Enrollment Date','Plan Type',
-    'Premium','Status','Aor Name',
-    'Aor Npn','Carrier Name','Lob',
-    'Applicant State','Application Email','Application Phone'
+    'Member ID',
+    'First Name',
+    'Last Name',
+    'Date of Birth',
+    'Enrollment Date',
+    'Plan Type',
+    'Monthly Premium',
+    'Enrollment Status',
+    'Agent / Broker Name',
+    'Agent NPN',
+    'Carrier Name',
+    'Line of Business',
+    'Member State',
+    'Email Address',
+    'Phone Number',
   ];
   var sourceColOptions = [
-    '-- Skip (leave empty) --',
+    '-- Skip this field --',
     'Insured First Name','Insured Last Name','Member Date Of Birth',
     'Plan Name','Monthly Premium Amount','Broker Name',
     'Broker NPN','State','Member Email','Member Phone Number',
@@ -8721,15 +8731,23 @@ function itBuildMappingHTML() {
     'Premium_Amt','Commission_Rate','Agent_NPN','Group_ID','Term_Date'
   ];
   var autoMap = {
-    'Member Id':'-- Skip (leave empty) --','Applicant First Name':'Insured First Name',
-    'Applicant Last Name':'Insured Last Name','Applicant Dob':'Member Date Of Birth',
-    'Enrollment Date':'-- Skip (leave empty) --','Plan Type':'Plan Name',
-    'Premium':'Monthly Premium Amount','Status':'-- Skip (leave empty) --',
-    'Aor Name':'Broker Name','Aor Npn':'Broker NPN',
-    'Carrier Name':'-- Skip (leave empty) --','Lob':'-- Skip (leave empty) --',
-    'Applicant State':'State','Application Email':'Member Email','Application Phone':'Member Phone Number'
+    'Member ID':           '-- Skip this field --',
+    'First Name':          'Insured First Name',
+    'Last Name':           'Insured Last Name',
+    'Date of Birth':       'Member Date Of Birth',
+    'Enrollment Date':     '-- Skip this field --',
+    'Plan Type':           'Plan Name',
+    'Monthly Premium':     'Monthly Premium Amount',
+    'Enrollment Status':   '-- Skip this field --',
+    'Agent / Broker Name': 'Broker Name',
+    'Agent NPN':           'Broker NPN',
+    'Carrier Name':        '-- Skip this field --',
+    'Line of Business':    '-- Skip this field --',
+    'Member State':        'State',
+    'Email Address':       'Member Email',
+    'Phone Number':        'Member Phone Number',
   };
-  var dbBadge = ['Member Id','Applicant Dob','Applicant State','Application Email','Application Phone'];
+  var dbBadge = ['Member ID','Date of Birth','Member State','Email Address','Phone Number'];
   var mapped = Object.values(autoMap).filter(function(v){ return v !== '-- Skip (leave empty) --'; }).length;
 
   function selOpts(current) {
@@ -8739,15 +8757,17 @@ function itBuildMappingHTML() {
   }
 
   var gridItems = dbFields.map(function(f) {
-    var val   = autoMap[f] || '-- Skip (leave empty) --';
-    var isDB  = dbBadge.indexOf(f) >= 0;
+    var val   = autoMap[f] || '-- Skip this field --';
+    var isReq = dbBadge.indexOf(f) >= 0;
+    var isMapped = val !== '-- Skip this field --';
     return '<div style="margin-bottom:16px;">'
       + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
         + '<span style="font-size:11.5px;font-weight:600;color:var(--ba-text-dark);">' + f + '</span>'
-        + (isDB ? '<span style="font-size:9px;font-weight:700;background:#e1e7f0;color:#24447f;padding:2px 6px;border-radius:4px;">DB</span>' : '')
+        + (isReq ? '<span style="font-size:9px;font-weight:700;background:#fdecea;color:#c62828;padding:2px 6px;border-radius:4px;">Required</span>' : '')
+        + (isMapped ? '<span style="font-size:9px;color:#2e7d32;margin-left:auto;">✓ matched</span>' : '')
       + '</div>'
       + '<div style="position:relative;">'
-        + '<select style="width:100%;padding:7px 28px 7px 10px;border:1px solid var(--ba-border);border-radius:var(--ba-radius);font-size:11.5px;font-family:\'Poppins\',sans-serif;color:var(--ba-text-dark);background:#fff;appearance:none;-webkit-appearance:none;cursor:pointer;">'
+        + '<select style="width:100%;padding:7px 28px 7px 10px;border:1.5px solid ' + (isMapped ? '#c8e6c9' : 'var(--ba-border)') + ';border-radius:var(--ba-radius);font-size:11.5px;font-family:\'Poppins\',sans-serif;color:' + (isMapped ? 'var(--ba-text-dark)' : 'var(--ba-text-muted)') + ';background:' + (isMapped ? '#f9fef9' : '#fff') + ';appearance:none;-webkit-appearance:none;cursor:pointer;">'
           + selOpts(val)
         + '</select>'
         + '<svg style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>'
@@ -8769,30 +8789,38 @@ function itBuildMappingHTML() {
 
   return ''
     // 4 stat cards
-    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">'
-      + statCard('FORMAT','Standard BOB Format','#24447f',false)
-      + statCard('CONFIDENCE','67%','#24447f',false)
-      + statCard('MAPPED / EXPECTED', mapped + ' / ' + dbFields.length,'#24447f',false)
-      + statCard('QUALITY','<span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>Medium</span>','#f59e0b',false)
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">'
+      + statCard('FILE TYPE DETECTED',   'Standard BOB Format', '#24447f', false)
+      + statCard('MATCH ACCURACY', '67%',              '#24447f', false)
+      + statCard('FIELDS MATCHED', mapped + ' of ' + dbFields.length, '#24447f', false)
+      + statCard('DATA QUALITY',  '<span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>Needs Review</span>', '#f59e0b', false)
     + '</div>'
-    // Column Inventory
-    + '<div style="border:1px solid var(--ba-border);border-radius:var(--ba-radius);margin-bottom:20px;overflow:hidden;">'
-      + '<div onclick="itToggleInventory()" style="display:flex;align-items:center;gap:8px;padding:11px 16px;cursor:pointer;background:#fafbfc;user-select:none;">'
+
+    // Detected Columns (was: Column Inventory)
+    + '<div style="border:1px solid var(--ba-border);border-radius:var(--ba-radius);margin-bottom:24px;overflow:hidden;">'
+      + '<div onclick="itToggleInventory()" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;background:#fafbfc;user-select:none;">'
         + '<svg id="itInvArrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" style="transition:transform .2s;"><polyline points="9 18 15 12 9 6"/></svg>'
-        + '<span style="font-size:12px;font-weight:600;color:var(--ba-text-dark);">Column Inventory</span>'
-        + '<span style="font-size:11px;color:var(--ba-text-muted);margin-left:auto;">' + sourceColsList.length + ' columns detected</span>'
+        + '<span style="font-size:12px;font-weight:600;color:var(--ba-text-dark);">Columns Found in Your File</span>'
+        + '<span style="font-size:11px;color:var(--ba-text-muted);margin-left:auto;">' + sourceColsList.length + ' columns found — click to preview</span>'
       + '</div>'
-      + '<div id="itInventoryBody" style="display:none;padding:12px 16px;border-top:1px solid var(--ba-border);background:#fff;">' + inventoryCols + '</div>'
+      + '<div id="itInventoryBody" style="display:none;padding:12px 16px;border-top:1px solid var(--ba-border);background:#fff;">'
+        + '<p style="font-size:11px;color:var(--ba-text-muted);margin:0 0 10px;">These are the column headers we detected in your uploaded file. Use the mapping below to tell us what each column means.</p>'
+        + inventoryCols
+      + '</div>'
     + '</div>'
-    // Column Mapping
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#24447f" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
-      + '<span style="font-size:13px;font-weight:700;color:var(--ba-text-dark);">Column Mapping</span>'
+
+    // Field Mapping (was: Column Mapping)
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#24447f" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+        + '<span style="font-size:13px;font-weight:700;color:var(--ba-text-dark);">Match Your File Columns to System Fields</span>'
+      + '</div>'
+      + '<span style="font-size:10.5px;color:var(--ba-text-muted);padding:3px 8px;background:#f0f4f8;border-radius:4px;">🤖 Fields pre-filled where we found a match</span>'
     + '</div>'
-    + '<p style="font-size:11px;color:var(--ba-text-muted);margin:0 0 18px;">All standard fields below. Pre-filled = auto-matched.</p>'
+    + '<p style="font-size:11.5px;color:var(--ba-text-muted);margin:0 0 18px;">For each system field below, choose the matching column from your file. Select <em>"Skip this field"</em> if the data isn\'t in your file.</p>'
     + '<div>' + gridRows + '</div>'
     + '<div style="display:flex;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--ba-border);">'
-      + '<button onclick="itSaveTemplate()" class="btn-ba-primary" style="padding:9px 22px;font-size:12px;">💾 Save Template</button>'
+      + '<button onclick="itSaveTemplate()" class="btn-ba-primary" style="padding:9px 22px;font-size:12px;">💾 Save Mapping Template</button>'
     + '</div>';
 }
 
